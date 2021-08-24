@@ -1,4 +1,4 @@
-#SoundPaintAndroid
+# SoundPaintAndroid
 
 A paint program that lets you listen to your drawing in an interactive way. 
 I’m trying to make a google play uploadable .apk in which:
@@ -9,7 +9,8 @@ I used volna, based on Google.Oboe, written in C++ for low latency, and Midi to 
 The first version would just replace Minim over processing as the synth source.
 
 The current state is: If you create the .apk using Android Studio, you get the paint part of SountPaint, with an easy to fix bug related to how android picks the press and release mouse/finger events.
-But volna and processing dependecies coexist, you can paint but the Listen boton is disabled.
+But volna and processing dependecies coexist, you can paint but the LISTEN boton is disabled. 
+Volna UI is disabled and the sound engine is not initialized or asociated to touch events in the LISTEN mode of SoundPaint.
 
 
 ## volna - wavetable touch synthesizer for android Fork
