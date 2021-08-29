@@ -5,15 +5,9 @@ import android.graphics.Paint;
 import android.media.midi.MidiManager;
 import android.os.Bundle;
 import android.os.Handler;
-import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.SeekBar;
-import android.widget.Spinner;
-import android.widget.TextView;
-import android.widget.ToggleButton;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -87,58 +81,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText lowOffsetEditText;
     private EditText midOffsetEditText;
     private EditText highOffsetEditText;
-
-    private ToggleButton redToggleButton;
-    private ToggleButton legatoToggleButton;
-    private Spinner scaleSpinner;
     private boolean legato = true;
-    private Spinner rootNoteSpinner;
-    private SeekBar tetSeekBar;
-    private SeekBar tuneSeekBar;
-    private SeekBar octaveFactorSeekBar;
-    private SeekBar osc1AttackSeekBar;
-    private SeekBar osc1DecaySeekBar;
-    private SeekBar osc1SustainSeekBar;
-    private SeekBar osc1ReleaseSeekBar;
-    private SeekBar osc2AttackSeekBar;
-    private SeekBar osc2DecaySeekBar;
-    private SeekBar osc2SustainSeekBar;
-    private SeekBar osc2ReleaseSeekBar;
-    private SeekBar maxSpreadSeekBar;
-    private SeekBar osc1WaveSeekBar;
-    private SeekBar osc1WaveControlSeekBar;
-    private SeekBar osc2WaveSeekBar;
-    private SeekBar osc2WaveControlSeekBar;
-    private SeekBar delayLevelSeekBar;
-    private SeekBar delayTimeSeekBar;
-    private SeekBar delayFeedbackSeekBar;
-    private SeekBar gridSizeSeekBar;
-    private TextView tuneTextView;
-    private TextView tetTextView;
-    private TextView octaveFactorTextView;
-    private TextView osc1AttackTextView;
-    private TextView osc1DecayTextView;
-    private TextView osc1SustainTextView;
-    private TextView osc1ReleaseTextView;
-    private TextView osc2AttackTextView;
-    private TextView osc2DecayTextView;
-    private TextView osc2SustainTextView;
-    private TextView osc2ReleaseTextView;
-    private TextView oscSpreadTextView;
-    private WaveDisplay osc1WaveDisplay;
-    private WaveDisplay osc2WaveDisplay;
-
-    private TextView osc1WaveTextView;
-    private TextView osc2WaveTextView;
-    private TextView osc1WaveControlTextView;
-    private TextView osc2WaveControlTextView;
-    private Button settingsButton;
-    private Button recButton;
-    private Button playButton;
-    private Button clearButton;
-    private Button tempoButton;
-    private View optionsScrollView;
-    private View menuView;
     private int rootNote = 36;
     private int xNoteScale = 160;
     private int currentScale = 0;
@@ -181,6 +124,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        //Paint visual UI init
         super.onCreate(savedInstanceState);
         FrameLayout frame = new FrameLayout(this);
         frame.setId(CompatUtils.getUniqueViewId());
@@ -190,7 +135,120 @@ public class MainActivity extends AppCompatActivity {
         sketch = new SoundPaint();
         PFragment fragment = new PFragment(sketch);
         fragment.setView(frame, this);
+
+        //Audio engine init
+
+        prefs = new AppPreferences(this);
+        engine = new SynthEngine(this, 44100);
+        lowOffset = prefs.readInt("lowOffset",0);
+        midOffset = prefs.readInt("midOffset",12);
+        highOffset = prefs.readInt("highOffset",24);
+        delayLevel = prefs.readInt("delayLevel",0);
+        delayTime = prefs.readInt("delayTime",0);
+        delayFeedback = prefs.readInt("delayFeedback",0);
+        engine.initAudio();
+
+        tune = (prefs.readInt("tune", 4400) / 10.0f);
+        tet = prefs.readInt("tet", 12);
+        octaveFactor = (prefs.readInt("octaveFactor",2000)/1000.0f);
+        red = prefs.readInt("red", 0) == 0 ? false : true;
+        legato = prefs.readInt("legato", 0)==0?false:true;
+
+        rootNote = prefs.readInt("rootNote", 35);
+        xNoteScale = prefs.readInt("xNoteScale", 160);
+        currentScale = prefs.readInt("currentScale", 0);
+        maxSpread = prefs.readInt("maxSpread", 0);
+        osc1Wave = prefs.readInt("osc1Wave", 0);
+        osc2Wave = prefs.readInt("osc2Wave", 0);
+        osc1WaveControl = prefs.readInt("osc1WaveControl", 255);
+        osc2WaveControl = prefs.readInt("osc2WaveControl", 255);
+        engine.initSynthParameters();
+        engine.setOsc1Volume(prefs.readInt("osc1Volume", 127));
+        engine.setOsc2Volume(prefs.readInt("osc2Volume", 127));
+        engine.setOsc1Attack(prefs.readInt("osc1Attack", 10));
+        engine.setOsc1Decay(prefs.readInt("osc1Decay", 0));
+        engine.setOsc1Sustain(prefs.readInt("osc1Sustain", 127));
+        engine.setOsc1Release(prefs.readInt("osc1Release", 0));
+        engine.setOsc2Attack(prefs.readInt("osc2Attack", 10));
+        engine.setOsc2Decay(prefs.readInt("osc2Decay", 0));
+        engine.setOsc2Sustain(prefs.readInt("osc2Sustain", 127));
+        engine.setOsc2Release(prefs.readInt("osc2Release", 0));
+        engine.setDelayLevel(delayLevel);
+        engine.setDelayTime(delayTime);
+        engine.setDelayFeedback(delayFeedback);
+        engine.setTune(tune);
+        engine.setTet(tet);
+        engine.setOctaveFactor(octaveFactor);
+        rootNoteStr = this.midiNoteToString(rootNote);
     }
+
+    //AUDIO AUX FUNCTIONS
+
+    public String midiNoteToString(int note) {
+        note = note % tet;
+        if (tet == 12) {
+            switch (note) {
+                case 0:
+                    return "C";
+
+                case 1:
+                    return "C#";
+                case 2:
+                    return "D";
+                case 3:
+                    return "D#";
+                case 4:
+                    return "E";
+                case 5:
+                    return "F";
+                case 6:
+                    return "F#";
+                case 7:
+                    return "G";
+                case 8:
+                    return "G#";
+                case 9:
+                    return "A";
+                case 10:
+                    return "A#";
+                case 11:
+                    return "B";
+            }
+        } else {
+            return "T" + (note % tet) + "_" + (note / tet);
+        }
+        return "";
+    }
+
+    public int transformNote(int noteIn) {
+        if (tet != 12) {
+            return noteIn % (11*tet);
+        }
+        int notesInScale = scales[currentScale * 13];
+        int relnote = noteIn - rootNote;
+        int octave = relnote / notesInScale;
+        int noteInScale = relnote % notesInScale;
+        int index = currentScale * 13 + 1 + noteInScale;
+        int noteOut = -1;
+        if (scales == null) {
+            return 0;
+        }
+        if (index < scales.length && index >= 0) {
+            noteOut = this.rootNote + scales[index] + octave * tet;
+        } else {
+            while (index >= scales.length) {
+                index = index - tet;
+            }
+            if (index < 0) {
+                index = 0;
+            }
+            noteOut = this.rootNote + scales[index] + octave * tet;
+        }
+
+        return noteOut % 128;
+    }
+
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
