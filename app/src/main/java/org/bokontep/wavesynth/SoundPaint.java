@@ -37,11 +37,11 @@ public class SoundPaint extends PApplet {
 
     //Paint VariableS
     int oldX=0, oldY=0, drawSat=255, drawBri=255;
-    int ColSpacing= (int) (map(58, 0,800, 0 , width)*15);
-    int ColOff = (int) (map(8, 0, 800, 0 , width)*10);
+    int ColSpacing=0;
+    int ColOff = 0;
 
 
-    int PenSize= (int) (map(30, 0, 800, 0 , width)*10);
+    int PenSize= 0;
     int huePik;
     boolean BW=false;
     boolean Drpr=false;
@@ -70,6 +70,10 @@ public class SoundPaint extends PApplet {
         colorMode(HSB, 255);
         background(255);
 
+        //spacing between the colors in the pallete
+        ColSpacing = (int) (map(63, 0,800, 0 , width));
+        ColOff = (int) (map(7, 0, 800, 0 , width));
+        PenSize= (int) (map(30, 0, 800, 0 , width));
         //Auto
         //Agente juan = new Agente();
 
