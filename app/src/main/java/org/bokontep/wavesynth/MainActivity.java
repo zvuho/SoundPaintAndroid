@@ -32,7 +32,7 @@ import static android.view.MotionEvent.AXIS_Y;
 
 public class MainActivity extends AppCompatActivity {
 
-    static final String TAG = "Volna";
+    static final String TAG = "SoundPaint";
 
     private final int[] scales =
             {

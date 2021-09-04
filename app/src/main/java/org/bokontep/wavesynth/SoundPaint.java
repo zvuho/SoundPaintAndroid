@@ -35,8 +35,8 @@ public class SoundPaint extends PApplet {
     float freq=255; //Link Variable between PixelArray and Minim
     float amp=0; //Link Variable between PixelArray and Minim
 
-    //Paint VariableS
-    int oldX=0, oldY=0, drawSat=255, drawBri=255;
+    //Paint Variables
+    int currX = 0, currY = 0, oldX=0, oldY=0, drawSat=255, drawBri=255;
     int ColSpacing=0;
     int ColOff = 0;
 
@@ -45,10 +45,6 @@ public class SoundPaint extends PApplet {
     int huePik;
     boolean BW=false;
     boolean Drpr=false;
-    //Pixel array
-
-    //Paint VariableS
-    int currX = 0, currY = 0;
 
 
     public int getEventX() {
@@ -772,4 +768,9 @@ void drawButtons() {
     public void mouseReleased() {
         buttonsChk();
     }
+    public void mousePressed() {
+        oldX = mouseX;
+        oldY = mouseY;
+    }
+
 }
