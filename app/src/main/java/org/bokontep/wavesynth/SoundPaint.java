@@ -1,5 +1,6 @@
 package org.bokontep.wavesynth;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -23,9 +24,14 @@ import java.io.IOException;
 import processing.core.PApplet;
 import processing.core.PImage;
 
-import static android.view.MotionEvent.AXIS_Y;
+import static android.content.Context.MIDI_SERVICE;
+import static androidx.core.content.ContextCompat.getSystemService;
+
 
 public class SoundPaint extends PApplet {
+    Activity activity = getActivity();
+
+    Context context = getContext();
 
     // wavesynth variables
     private final int[] scales =
@@ -85,10 +91,16 @@ public class SoundPaint extends PApplet {
     private EditText midOffsetEditText;
     private EditText highOffsetEditText;
     private boolean legato = true;
+        //MODIFIED VARS
+    int waveform1 = 0;
+    int waveform2 = 0;
+
+    int oscdist = 0;
+    private boolean actionMove = false;
+    int midinote = -1;
     private int rootNote = 36;
     private int xNoteScale = 160;
     private int currentScale = 0;
-    private final int[] notemap = new int[10];
     //private HashMap<Integer, Integer> notemap = new HashMap<>();
     private AppPreferences prefs;
     private SynthEngine engine;
@@ -187,8 +199,6 @@ public class SoundPaint extends PApplet {
         //Agente juan = new Agente();
 
         //Audio engine init
-
-        Context context = getContext();
         prefs = new AppPreferences(context);
         engine = new SynthEngine(context, 44100);
         lowOffset = prefs.readInt("lowOffset",0);
@@ -860,168 +870,36 @@ void drawButtons() {
                 offset = midOffset;
             }
 
-            int oscdist = -((int) (((xNoteScale - xPos % xNoteScale) / xNoteScale) * 127) - 63);
+            oscdist = -((int) (((xNoteScale - xPos % xNoteScale) / xNoteScale) * 127) - 63);
 
             //Calculating of the note to be sent to the Synth engine
 
-            int midinote = (rootNote + ((int) xPos / xNoteScale)) % (11*tet);
+            midinote = (rootNote + ((int) xPos / xNoteScale)) % (11*tet);
             midinote = (transformNote(midinote+offset)  ) % (11*tet);
-            int factor = (int) height / 3;
 
-            //Here the Y axis of each event is used
-            int wi = (int) yPos % factor;
 
-            int waveform1 = (this.osc1Wave + (wi * this.osc1WaveControl) / factor) % 256;
-            int waveform2 = (this.osc2Wave + (wi * this.osc2WaveControl) / factor) % 256;
+            if(midinote>=0) {
+                int factor = (int) height / 3;
 
-            engine.selectWaveform(0, 0, midinote, waveform1);
-            engine.selectWaveform(0, 1, midinote, waveform2);
+                //Here the Y axis ois used
+                int wi = (int) yPos % factor;
+
+                waveform1 = (this.osc1Wave + (wi * this.osc1WaveControl) / factor) % 256;
+                waveform2 = (this.osc2Wave + (wi * this.osc2WaveControl) / factor) % 256;
+
+                engine.sendMidiNoteOn(0, midinote, vel);
+                midiNoteOn(0,midinote%128, vel);
+                engine.selectWaveform(0, 0, midinote, waveform1);
+                engine.selectWaveform(0, 1, midinote, waveform2);
+            }
+
+            //FIXED PRESSURE VARiABLE PRESSURE CODE IN ORIGINAL REPO
             float pressure =  0.25f;
-
             int tmp = ((int) (127.0 * pressure * 4));
             vel = tmp > 127 ? 127 : tmp;
-            scopetext = scopetext + " " + midinote;
-            if (vel >= 0) {
-                scopetext = scopetext + "(" + vel + ")";
-            }
 
-            int last = notemap[id];
-            if (action == MotionEvent.ACTION_DOWN && id==index)  {
-                //scope.printLine("ACTION_DOWN " + id);
-                if(last>=0)
-                {
-                    engine.sendMidiNoteOff(0,last,0);
-                    midiNoteOff(0,last%128,0);
-                    notemap[id] = -1;
-                }
-
-                if(midinote>=0) {
-                    engine.sendMidiNoteOn(0, midinote, vel);
-                    midiNoteOn(0,midinote%128, vel);
-                    engine.selectWaveform(0, 0, midinote, waveform1);
-                    engine.selectWaveform(0, 1, midinote, waveform2);
-
-                    notemap[id] = midinote;
-                }
-
-            }
-            if(action == MotionEvent.ACTION_POINTER_DOWN && id==index)
-            {
-                //scope.printLine("ACTION_PONTER_DOWN " + id );
-                if(last>=0)
-                {
-                    engine.sendMidiNoteOff(0,last,0);
-                    midiNoteOff(0,last%128,0);
-
-                    notemap[id] = -1;
-                }
-
-                if(midinote>=0) {
-                    engine.sendMidiNoteOn(0, midinote, vel);
-                    midiNoteOn(0,midinote%128,vel);
-
-                    engine.selectWaveform(0, 0, midinote, waveform1);
-                    engine.selectWaveform(0, 1, midinote, waveform2);
-
-                    notemap[id] = midinote;
-                }
-            }
-            if (action == MotionEvent.ACTION_MOVE )
-            {
-                actionMove = true;
-                activeIds[i%10]=id;
-                //scope.printLine("ACTION_MOVE");
-                if (midinote >= 0) {
-                    int offset1 = 64 - oscdist;
-                    int offset2 = 64 + oscdist;
-                    if (offset1 < 0 || offset1 > 127) {
-                        offset1 = 0;
-                    }
-                    if (offset2 > 127 || offset2 < 0) {
-                        offset2 = 127;
-                    }
-
-                    engine.selectWaveform(0, 0, midinote, waveform1);
-                    engine.selectWaveform(0, 1, midinote, waveform2);
-
-
-                    if(legato)
-                    {
-                        if(last>=0 && last!=midinote) {
-                            engine.sendMidiChangeNote(0, last, midinote, vel);
-                            midiNoteOn(0,midinote,vel);
-                            midiNoteOff(0,last%127,0);
-
-                        }
-                    }
-                    else {
-                        if(last>=0 && last!=midinote) {
-                            engine.sendMidiNoteOff(0, last, 0);
-
-                            engine.sendMidiNoteOn(0, midinote, vel);
-                            midiNoteOff(0,last%128,0);
-                            midiNoteOn(0,midinote,vel);
-                        }
-                    }
-                    if(last>0 && last==midinote) {
-                        float spreadFactor = (float) (maxSpread / 127.0);
-                        oscdist = (int) (spreadFactor * oscdist);
-                        engine.sendMidiNoteSpread(0, midinote, 63 + oscdist);
-                    }
-
-                    notemap[id]=midinote;
-                    midiPolyAftertouch(0,midinote,vel);
-
-                    midiSendCC(0,id+1,(waveform1>>1)%128);
-
-                }
-
-
-            }
-
-            if (action == MotionEvent.ACTION_POINTER_UP && id==index && id>=0)
-            {
-
-                //scope.printLine("ACTION_POINTER_UP "+id);
-
-
-                engine.sendMidiNoteOff(0, last, 0);
-                engine.sendMidiNoteOff(0, midinote, 0);
-                midiNoteOff(0,last%128,0);
-                midiNoteOff(0,midinote%128,0);
-
-                scope.unsetMarker("" + index);
-                notemap[id]=-1;
-
-
-
-            }
-            if(action == MotionEvent.ACTION_UP )
-            {
-                //scope.printLine("ACTION_UP "+id);
-                for(int n=0;n<notemap.length;n++) {
-                    if(notemap[n]>0)
-                    {
-                        engine.sendMidiNoteOff(0, notemap[n], 0);
-                        midiNoteOff(0,notemap[n]%127,0);
-                    }
-
-                    scope.unsetMarker("" + n);
-                    notemap[n]=-1;
-
-                }
-
-
-
-
-            }
 
         }
-        if(legato)
-        {
-            scopetext = scopetext+" L";
-        }
-        scope.setText(scopetext);
 
 
 
@@ -1138,7 +1016,7 @@ void drawButtons() {
 
  */
 
-    }
+
 
 
     public void draw() {
@@ -1183,20 +1061,52 @@ void drawButtons() {
     }
 
     public void mouseReleased() {
+
+        if(Modo == 2) {
+            engine.sendMidiNoteOff(0, midinote, 0);
+            midiNoteOff(0, midinote % 127, 0);
+        }
         buttonsChk();
     }
     public void mousePressed() {
         oldX = mouseX;
         oldY = mouseY;
     }
+    public void mouseMoved() {
+        actionMove = true;
+        //scope.printLine("ACTION_MOVE");
+        if (midinote >= 0) {
+            int offset1 = 64 - oscdist;
+            int offset2 = 64 + oscdist;
+            if (offset1 < 0 || offset1 > 127) {
+                offset1 = 0;
+            }
+            if (offset2 > 127 || offset2 < 0) {
+                offset2 = 127;
+            }
 
+            engine.selectWaveform(0, 0, midinote, waveform1);
+            engine.selectWaveform(0, 1, midinote, waveform2);
+
+
+                float spreadFactor = (float) (maxSpread / 127.0);
+                oscdist = (int) (spreadFactor * oscdist);
+                engine.sendMidiNoteSpread(0, midinote, 63 + oscdist);
+
+            midiPolyAftertouch(0,midinote,vel);
+
+            midiSendCC(0,1,(waveform1>>1)%128);
+
+        }
+
+
+    }
 
 
     public void logMidi(byte[] data) {
         if (data != null) {
             if (data.length > 0) {
                 this.midiLog = "RX:" + data[0];
-                scope.setMidilog(this.midiLog);
             }
         }
     }
@@ -1209,12 +1119,12 @@ void drawButtons() {
                 @Override
                 public void run() {
                     if (connection == null) {
-                        Toast.makeText(MainActivity.this,
+                        Toast.makeText(context,
                                 "PORT BUSY", Toast.LENGTH_LONG)
                                 .show();
                         midiPortSelector.clearSelection();
                     } else {
-                        Toast.makeText(MainActivity.this,
+                        Toast.makeText(context,
                                 "PORT OPENED!", Toast.LENGTH_LONG)
                                 .show();
                     }
@@ -1225,16 +1135,12 @@ void drawButtons() {
 
     private void setupMidi(int spinnerID, int spinnerID2) {
         // Setup MIDI
-        midiManager = (MidiManager) getSystemService(MIDI_SERVICE);
+        midiManager = (MidiManager) context.getSystemService(MIDI_SERVICE);
 
         MidiDeviceInfo synthInfo = MidiTools.findDevice(midiManager, "Bokontep",
                 "Volna");
-        if (synthInfo != null) {
-            scope.setMidilog("MIDI device found!");
-        }
         int portIndex = 0;
-        scope.setMidilog("");
-        midiPortSelector = new MidiOutputPortConnectionSelector(midiManager, this,
+        midiPortSelector = new MidiOutputPortConnectionSelector(midiManager, activity,
                 spinnerID, synthInfo, portIndex);
         midiPortSelector.setConnectedListener(new MidiPortConnector.OnPortsConnectedListener() {
             @Override
@@ -1243,12 +1149,12 @@ void drawButtons() {
                     @Override
                     public void run() {
                         if (connection == null) {
-                            Toast.makeText(MainActivity.this,
+                            Toast.makeText(context,
                                     "Port busy!", Toast.LENGTH_LONG)
                                     .show();
                             midiPortSelector.clearSelection();
                         } else {
-                            Toast.makeText(MainActivity.this,
+                            Toast.makeText(context,
                                     "Port opened!", Toast.LENGTH_LONG)
                                     .show();
                         }
@@ -1259,11 +1165,11 @@ void drawButtons() {
         midiReceiver = new VolnaMidiReceiver(engine);
 
         VolnaMidiDeviceService.setMidiReceiver(midiReceiver);
-        midiInputPortSelector = new MidiInputPortSelector(midiManager,this,spinnerID2);
+        midiInputPortSelector = new MidiInputPortSelector(midiManager,activity,spinnerID2);
     }
 
 
-    private void midiNoteOff(int channel, int pitch, int velocity) {
+    public void midiNoteOff(int channel, int pitch, int velocity) {
         midiCommand(MidiConstants.STATUS_NOTE_OFF | channel, pitch, velocity);
     }
 
